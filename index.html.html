@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Monitor de Fronteras</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:           #0a0a0f;
+  --bg2:          #0f0f18;
+  --surface:      #13131e;
+  --surface2:     #1a1a28;
+  --surface3:     #212135;
+  --border:       #2a2a45;
+  --border2:      #353558;
+  --text:         #e8e8f0;
+  --muted:        #6b6b90;
+  --subtle:       #3a3a58;
+  --accent:       #00e5a0;
+  --accent2:      #7c6aff;
+  --accent3:      #ff6b6b;
+  --amber:        #ffb443;
+  --blue:         #4d9fff;
+  --sans:         'Poppins', sans-serif;
+  --mono:         'DM Mono', monospace;
+  --r:            10px;
+  --r-lg:         16px;
+  --glow-green:   0 0 20px rgba(0,229,160,0.3);
+  --glow-purple:  0 0 20px rgba(124,106,255,0.3);
+  --glow-red:     0 0 20px rgba(255,107,107,0.3);
+}
+
+[data-theme="light"] {
+  --bg:           #f4f6f9;
+  --bg2:          #ebeef4;
+  --surface:      #ffffff;
+  --surface2:     #f8f9fc;
+  --surface3:     #eef0f6;
+  --border:       #dde1ec;
+  --border2:      #c8cedd;
+  --text:         #1a1d2e;
+  --muted:        #5a6080;
+  --subtle:       #9aa0b8;
+  --accent:       #00b87a;
+  --accent2:      #5b4fd4;
+  --accent3:      #d94f4f;
+  --amber:        #d4860a;
+  --blue:         #2f7fd4;
+  --glow-green:   0 0 16px rgba(0,184,122,0.12);
+  --glow-purple:  0 0 16px rgba(91,79,212,0.12);
+  --glow-red:     0 0 16px rgba(217,79,79,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 80px;
+  transition: background 0.3s, color 0.3s;
+  overflow-x: hidden;
+}
+
+/* ── FONDO ANIMADO ───────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(91,79,212,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 80% 80%, rgba(0,229,160,0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── GRID LINES DE FONDO ─────────────────────────── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(91,79,212,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(91,79,212,0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+main, header { position: relative; z-index: 1; }
+
+/* ── HEADER ──────────────────────────────────────── */
+header {
+  width: 100%;
+  background: rgba(10,10,15,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+[data-theme="light"] header {
+  background: rgba(255,255,255,0.92);
+  border-bottom-color: var(--border);
+}
+
+.hd-left { display: flex; align-items: center; gap: 14px; }
+
+.hd-logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  box-shadow: var(--glow-purple);
+  flex-shrink: 0;
+}
+
+.hd-title { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: 0.04em; }
+.hd-sub   { font-size: 10px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.06em; margin-top: 1px; }
+
+.hd-right { display: flex; align-items: center; gap: 16px; }
+
+/* ── PILL DE ESTADO EN VIVO ──────────────────────── */
+.live-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(0,229,160,0.1);
+  border: 1px solid rgba(0,229,160,0.25);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+
+.live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+#reloj {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  display: none;
+}
+
+/* ── THEME TOGGLE ─────────────────────────────────── */
+.theme-toggle {
+  width: 44px; height: 24px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.theme-toggle::after {
+  content: '';
+  position: absolute;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  top: 2px; left: 2px;
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 0 8px rgba(124,106,255,0.5);
+}
+
+[data-theme="light"] .theme-toggle::after { transform: translateX(20px); }
+
+/* ── MAIN ────────────────────────────────────────── */
+main {
+  width: 100%;
+  max-width: 680px;
+  padding: 24px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── CARD ─────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  transition: background 0.3s, border-color 0.3s;
+  animation: slideUp 0.4s ease both;
+}
+
+.card:nth-child(1) { animation-delay: 0.05s; }
+.card:nth-child(2) { animation-delay: 0.1s; }
+.card:nth-child(3) { animation-delay: 0.15s; }
+.card:nth-child(4) { animation-delay: 0.2s; }
+.card:nth-child(5) { animation-delay: 0.25s; }
+.card:nth-child(6) { animation-delay: 0.3s; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-head {
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface2);
+}
+
+.card-head-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-head-title::before {
+  content: '';
+  width: 3px; height: 14px;
+  background: linear-gradient(to bottom, var(--accent2), var(--accent));
+  border-radius: 2px;
+}
+
+.card-body { padding: 20px; }
+
+/* ── STATS DEL DASHBOARD ─────────────────────────── */
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.kpi-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 12px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.kpi-box:hover  { transform: translateY(-2px); }
+.kpi-box:active { transform: scale(0.97); }
+.kpi-box.op:hover { border-color: var(--accent);  box-shadow: var(--glow-green); }
+.kpi-box.fa:hover { border-color: var(--accent3); box-shadow: var(--glow-red); }
+.kpi-box.ni:hover { border-color: var(--amber);   box-shadow: 0 0 16px rgba(255,180,67,0.25); }
+.kpi-box.active-filter.op { border-color: var(--accent);  box-shadow: var(--glow-green); background: rgba(0,229,160,0.07); }
+.kpi-box.active-filter.fa { border-color: var(--accent3); box-shadow: var(--glow-red);   background: rgba(255,107,107,0.07); }
+.kpi-box.active-filter.ni { border-color: var(--amber);   box-shadow: 0 0 16px rgba(255,180,67,0.25); background: rgba(255,180,67,0.07); }
+
+.kpi-box::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 0 0 var(--r) var(--r);
+}
+
+.kpi-box.op::after  { background: var(--accent); }
+.kpi-box.fa::after  { background: var(--accent3); }
+.kpi-box.ni::after  { background: var(--amber); }
+
+.kpi-val {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.kpi-box.op .kpi-val { color: var(--accent); }
+.kpi-box.fa .kpi-val { color: var(--accent3); }
+.kpi-box.ni .kpi-val { color: var(--amber); }
+
+.kpi-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ── PANEL DESPLEGABLE DE PROYECTOS POR ESTADO ────── */
+.kpi-drawer {
+  display: none;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  animation: slideDown 0.25s ease both;
+}
+
+.kpi-drawer.open { display: block; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.drawer-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.drawer-close {
+  background: none;
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.drawer-close:hover { border-color: var(--accent3); color: var(--accent3); }
+
+.drawer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.drawer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  gap: 10px;
+  transition: border-color 0.15s;
+}
+
+.drawer-item:hover { border-color: var(--border2); }
+
+.drawer-item-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+
+.drawer-item-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawer-item-sub {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+.drawer-tipo {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.drawer-tipo.p { background: rgba(77,159,255,0.12);  color: var(--blue);    border: 1px solid rgba(77,159,255,0.25); }
+.drawer-tipo.r { background: rgba(124,106,255,0.12); color: var(--accent2); border: 1px solid rgba(124,106,255,0.25); }
+
+.drawer-empty {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--subtle);
+  padding: 14px 0;
+}
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.chart-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+}
+
+.chart-box-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tipo-pill {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.tipo-pill.p { background: rgba(77,159,255,0.15); color: var(--blue); border: 1px solid rgba(77,159,255,0.3); }
+.tipo-pill.r { background: rgba(124,106,255,0.15); color: var(--accent2); border: 1px solid rgba(124,106,255,0.3); }
+
+.chart-wrap { position: relative; height: 130px; width: 100%; }
+
+.stats-row { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; }
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  gap: 7px;
+}
+
+.stat-bar-wrap {
+  flex: 1;
+  height: 3px;
+  background: var(--surface3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.stat-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  width: 0%;
+}
+
+.stat-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 16px;
+  text-align: right;
+}
+
+.chart-refresh {
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.chart-refresh:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--glow-green);
+}
+
+.chart-loading {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--subtle);
+  text-align: center;
+  padding: 40px 0;
+  letter-spacing: 0.04em;
+}
+
+/* ── MODE TOGGLE ──────────────────────────────────── */
+.mode-toggle {
+  display: flex;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 4px;
+  gap: 4px;
+}
+
+.mode-btn {
+  flex: 1; border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 12px; font-weight: 600;
+  padding: 10px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.03em;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.mode-btn.active {
+  background: var(--surface3);
+  color: var(--text);
+  box-shadow: 0 1px 8px rgba(0,0,0,0.3);
+}
+
+.mode-desc {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--mono);
+  padding: 10px 14px;
+  background: var(--surface2);
+  border-radius: var(--r);
+  border-left: 3px solid var(--accent2);
+}
+
+/* ── BANNER ───────────────────────────────────────── */
+.new-banner {
+  background: rgba(255,180,67,0.08);
+  border: 1px solid rgba(255,180,67,0.25);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--r);
+  padding: 10px 14px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--amber);
+  margin-bottom: 18px;
+  display: none;
+}
+
+/* ── FIELDS ───────────────────────────────────────── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field + .field { margin-top: 16px; }
+
+label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+select, input[type=text], textarea {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  padding: 12px 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+select:focus, input:focus, textarea:focus {
+  border-color: var(--accent2);
+  box-shadow: 0 0 0 3px rgba(124,106,255,0.15);
+}
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%236b6b90' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  padding-right: 34px;
+  cursor: pointer;
+}
+
+textarea { resize: vertical; min-height: 86px; line-height: 1.6; font-size: 13px; }
+::placeholder { color: var(--subtle); font-family: var(--mono); font-size: 12px; }
+.divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+/* ── TIPO MEDIDOR ─────────────────────────────────── */
+.tipo-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.tipo-btn {
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r);
+  background: var(--surface2);
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 600;
+  padding: 18px 10px;
+  cursor: pointer;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 6px;
+  transition: all 0.2s;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.tipo-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.tipo-btn:hover::before { opacity: 1; }
+
+.tipo-btn[data-val="Principal"]::before { background: radial-gradient(ellipse at center, rgba(77,159,255,0.08) 0%, transparent 70%); }
+.tipo-btn[data-val="Respaldo"]::before  { background: radial-gradient(ellipse at center, rgba(124,106,255,0.08) 0%, transparent 70%); }
+
+.tipo-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.tipo-btn .sub { font-size: 10px; font-weight: 400; color: var(--subtle); font-family: var(--mono); }
+
+.tipo-btn[data-val="Principal"].active {
+  border-color: var(--blue);
+  background: rgba(77,159,255,0.08);
+  color: var(--blue);
+  box-shadow: 0 0 16px rgba(77,159,255,0.2);
+}
+
+.tipo-btn[data-val="Respaldo"].active {
+  border-color: var(--accent2);
+  background: rgba(124,106,255,0.08);
+  color: var(--accent2);
+  box-shadow: 0 0 16px rgba(124,106,255,0.2);
+}
+
+/* ── ESTADO ───────────────────────────────────────── */
+.estado-wrap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+.est-btn {
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r);
+  background: var(--surface2);
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 16px 6px;
+  cursor: pointer;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0;
+  transition: all 0.2s;
+  user-select: none;
+  text-align: center; line-height: 1.3;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-height: 56px;
+}
+
+.est-icon { font-size: 18px; line-height: 1; }
+
+.est-btn[data-val="Operativo"].active {
+  border-color: var(--accent);
+  background: rgba(0,229,160,0.07);
+  color: var(--accent);
+  box-shadow: var(--glow-green);
+}
+
+.est-btn[data-val="En falla"].active {
+  border-color: var(--accent3);
+  background: rgba(255,107,107,0.07);
+  color: var(--accent3);
+  box-shadow: var(--glow-red);
+}
+
+.est-btn[data-val="no ha iniciado"].active {
+  border-color: var(--amber);
+  background: rgba(255,180,67,0.07);
+  color: var(--amber);
+  box-shadow: 0 0 16px rgba(255,180,67,0.2);
+}
+
+/* ── SERIAL ───────────────────────────────────────── */
+.serial-wrap { position: relative; }
+.serial-wrap input { padding-right: 82px; font-family: var(--mono); }
+
+.serial-tag {
+  position: absolute; right: 10px; top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.06em; padding: 3px 8px;
+  border-radius: 5px; pointer-events: none;
+  transition: all 0.2s; text-transform: uppercase;
+}
+
+.serial-tag.auto   { background: rgba(0,229,160,0.12);   color: var(--accent);  border: 1px solid rgba(0,229,160,0.3); }
+.serial-tag.manual { background: rgba(77,159,255,0.12);  color: var(--blue);    border: 1px solid rgba(77,159,255,0.3); }
+.serial-tag.empty  { background: var(--surface3);        color: var(--subtle);  border: 1px solid var(--border); }
+
+#inp-serial.auto-filled {
+  border-color: rgba(0,229,160,0.5);
+  background: rgba(0,229,160,0.05);
+  color: var(--accent);
+}
+
+.serial-hint { font-size: 11px; color: var(--muted); min-height: 16px; font-family: var(--mono); }
+
+/* ── COMENTARIO SUGERIDO ──────────────────────────── */
+.coment-status {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--muted);
+  padding: 5px 10px;
+  background: var(--surface3);
+  border-radius: 6px;
+  border-left: 2px solid var(--accent2);
+  display: none;
+}
+
+.coment-status.visible { display: block; }
+
+/* ── BOTONES ACCIÓN ───────────────────────────────── */
+.btn-row { display: flex; gap: 10px; }
+
+#btn-enviar {
+  flex: 1;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  border: none;
+  border-radius: var(--r);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 16px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.2s;
+  position: relative; overflow: hidden;
+  box-shadow: 0 4px 20px rgba(124,106,255,0.35);
+}
+
+#btn-enviar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+#btn-enviar:hover  { opacity: 0.9; box-shadow: 0 6px 28px rgba(124,106,255,0.5); }
+#btn-enviar:active { transform: scale(0.98); }
+#btn-enviar:disabled { opacity: 0.35; cursor: not-allowed; }
+
+#btn-limpiar {
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r);
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 600;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+#btn-limpiar:hover {
+  border-color: var(--accent3);
+  color: var(--accent3);
+  background: rgba(255,107,107,0.07);
+}
+
+/* ── TOAST ────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  border-radius: var(--r);
+  padding: 13px 22px;
+  font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 10px;
+  transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+  opacity: 0; z-index: 999;
+  max-width: 92%;
+  font-family: var(--mono);
+  letter-spacing: 0.03em;
+}
+
+#toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+#toast.ok   { background: rgba(0,229,160,0.15); border: 1px solid rgba(0,229,160,0.4); color: var(--accent); box-shadow: var(--glow-green); }
+#toast.err  { background: rgba(255,107,107,0.15); border: 1px solid rgba(255,107,107,0.4); color: var(--accent3); box-shadow: var(--glow-red); }
+#toast.info { background: rgba(124,106,255,0.15); border: 1px solid rgba(124,106,255,0.4); color: var(--accent2); box-shadow: var(--glow-purple); }
+
+/* ── HISTORIAL ────────────────────────────────────── */
+.hist-item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  transition: border-color 0.2s;
+  animation: fadeIn 0.3s ease both;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+
+.hist-item:last-child  { border-bottom: none; padding-bottom: 0; }
+.hist-item:first-child { padding-top: 0; }
+
+.hist-left { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+
+.hist-proyecto {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.hist-sub {
+  font-size: 10px; color: var(--muted);
+  font-family: var(--mono); letter-spacing: 0.04em;
+}
+
+.hist-ts {
+  font-size: 9px;
+  color: var(--subtle);
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+
+.hist-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ── BADGES ───────────────────────────────────────── */
+.badge {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.07em; padding: 3px 9px;
+  border-radius: 5px; white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.badge-op  { background: rgba(0,229,160,0.1);   color: var(--accent);  border: 1px solid rgba(0,229,160,0.3); }
+.badge-fa  { background: rgba(255,107,107,0.1); color: var(--accent3); border: 1px solid rgba(255,107,107,0.3); }
+.badge-ni  { background: rgba(255,180,67,0.1);  color: var(--amber);   border: 1px solid rgba(255,180,67,0.3); }
+.badge-new { background: var(--surface3);       color: var(--muted);   border: 1px solid var(--border2); }
+
+.btn-edit {
+  background: none;
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.btn-edit:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: rgba(77,159,255,0.08);
+}
+
+.btn-del {
+  background: none;
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-del:hover {
+  border-color: var(--accent3);
+  color: var(--accent3);
+  background: rgba(255,107,107,0.08);
+}
+
+.empty-msg {
+  text-align: center; color: var(--subtle);
+  font-size: 11px; padding: 24px 0;
+  font-family: var(--mono); letter-spacing: 0.04em;
+}
+
+/* ── SPINNER ──────────────────────────────────────── */
+.sp {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle; margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── CONTADOR EN HEADER DEL HISTORIAL ─────────────── */
+.hist-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: rgba(124,106,255,0.15);
+  color: var(--accent2);
+  border: 1px solid rgba(124,106,255,0.3);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .grid2 { grid-template-columns: 1fr; }
+  .estado-wrap { grid-template-columns: 1fr 1fr; }
+  .est-btn[data-val="no ha iniciado"] { grid-column: span 2; }
+  .chart-grid { grid-template-columns: 1fr; }
+  .dash-kpis { grid-template-columns: repeat(3,1fr); }
+  #reloj { display: none !important; }
+}
+
+@media (min-width: 481px) {
+  #reloj { display: block; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-left">
+    <div class="hd-logo"></div>
+    <div>
+      <div class="hd-title">Monitor de Fronteras</div>
+      <div class="hd-sub">Medidores · Principal &amp; Respaldo</div>
+    </div>
+  </div>
+  <div class="hd-right">
+    <div class="live-pill"><div class="live-dot"></div>EN VIVO</div>
+    <div id="reloj">--:--:--</div>
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar tema"></button>
+  </div>
+</header>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title">Estado general</span>
+      <button class="chart-refresh" onclick="cargarEstadisticas()">Actualizar</button>
+    </div>
+    <div class="card-body">
+      <div class="dash-kpis">
+        <div class="kpi-box op" onclick="toggleDrawer('Operativo')" id="kpi-box-op">
+          <div class="kpi-val" id="kpi-op">—</div>
+          <div class="kpi-lbl">Operativos</div>
+        </div>
+        <div class="kpi-box fa" onclick="toggleDrawer('En falla')" id="kpi-box-fa">
+          <div class="kpi-val" id="kpi-fa">—</div>
+          <div class="kpi-lbl">En Falla</div>
+        </div>
+        <div class="kpi-box ni" onclick="toggleDrawer('no ha iniciado')" id="kpi-box-ni">
+          <div class="kpi-val" id="kpi-ni">—</div>
+          <div class="kpi-lbl">Sin Iniciar</div>
+        </div>
+      </div>
+
+      <!-- DRAWER: lista de proyectos por estado -->
+      <div class="kpi-drawer" id="kpi-drawer">
+        <div class="drawer-header">
+          <span class="drawer-title" id="drawer-title">Proyectos</span>
+          <button class="drawer-close" onclick="cerrarDrawer()">Cerrar</button>
+        </div>
+        <div class="drawer-list" id="drawer-list"></div>
+      </div>
+      <div id="chart-container">
+        <p class="chart-loading">Cargando datos del sheet...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODO -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title">Modo de registro</span>
+    </div>
+    <div class="card-body">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-modo-existente" onclick="setModo('existente')">Proyecto existente</button>
+        <button class="mode-btn" id="btn-modo-nuevo" onclick="setModo('nuevo')">Proyecto nuevo</button>
+      </div>
+      <p class="mode-desc" id="desc-modo">Selecciona de la lista de proyectos registrados.</p>
+    </div>
+  </div>
+
+  <!-- UBICACIÓN Y PROYECTO -->
+  <div class="card" id="card-proyecto">
+    <div class="card-head"><span class="card-head-title">Ubicación y proyecto</span></div>
+    <div class="card-body">
+      <div class="new-banner" id="new-banner">Modo proyecto nuevo — ingresa los datos manualmente.</div>
+      <div class="grid2">
+        <div class="field">
+          <label>Departamento</label>
+          <select id="sel-depto" onchange="filtrarCiudades()">
+            <option value="">Seleccionar</option>
+            <option>Cesar</option><option>Sucre</option><option>Guajira</option>
+            <option>Santander</option><option>Atlántico</option><option>Córdoba</option>
+            <option>Magdalena</option><option>Bolívar</option>
+          </select>
+          <input type="text" id="inp-depto" placeholder="Departamento" style="display:none;">
+        </div>
+        <div class="field">
+          <label>Ciudad</label>
+          <select id="sel-ciudad"><option value="">Seleccionar</option></select>
+          <input type="text" id="inp-ciudad" placeholder="Ciudad" style="display:none;">
+        </div>
+      </div>
+      <div class="field">
+        <label>Nombre del proyecto</label>
+        <select id="sel-proyecto" onchange="autoSerial()">
+          <option value="">Seleccionar proyecto</option>
+          <option>Sol&amp;Cielo9 - Ciénaga</option>
+          <option>MGS 0028 - Chiriguaná Norte</option>
+          <option>MGS 005 - Cañahuate</option>
+          <option>GD Marimonda</option>
+          <option>MGS 004 - Valle de Gandalf</option>
+          <option>GD Polaris 1</option>
+          <option>MGS 003 - Baraya</option>
+          <option>MGS 007 - La Paz Vallenata</option>
+          <option>MGS 0015 - El Son</option>
+          <option>GD Delta 1</option>
+          <option>MGS 009 - El molino</option>
+          <option>MGS 0010 - Villanueva</option>
+          <option>MGS 0012 - La Reserva</option>
+          <option>MGS 001 - Uuraco</option>
+          <option>PSF- Yurbaqua</option>
+          <option>MGS 006 - Perijá</option>
+          <option>MGS 0016 - La Puya</option>
+          <option>GD NAOS 1</option>
+          <option>MGS 008 - La Paz Verso</option>
+          <option>GD NAOS 2</option>
+          <option>Minigranja 0017 - La Paz Esmeralda</option>
+          <option>MGS 0019 - El Merengue</option>
+          <option>GD NAOS 3</option>
+          <option>Minigranja 0022 - La Cumbia</option>
+          <option>MGS 0014 - El Olimpo</option>
+          <option>MGS San Diego Sur</option>
+          <option>MGS 0023 - El Joropo</option>
+          <option>MGS El Mapalé</option>
+          <option>MGS 0041 - Las Piloneras</option>
+          <option>MGS 0013 - La Mesa</option>
+          <option>MGS 0040 - La Cacica</option>
+          <option>GD San Pelayo</option>
+          <option>GD Agustín 1</option>
+          <option>GD Polaris 2</option>
+          <option>GD BISOLAR</option>
+          <option>GD ASTROLUMEN LA GARITA</option>
+          <option>GD SIRIUS</option>
+          <option>Valencia Oriente 2</option>
+          <option>El Copey Occidente</option>
+          <option>Sol&amp;Cielo7 Los Bongos</option>
+          <option>Valencia Oriente 1</option>
+          <option>GD La Catedral</option>
+          <option>Gd Yuan Solar</option>
+          <option>Cedillanos Frontera 88864637</option>
+          <option>Minigranja 0018 - La Paz Leyenda</option>
+        </select>
+        <input type="text" id="inp-proyecto" placeholder="Nombre del proyecto" style="display:none;">
+      </div>
+    </div>
+  </div>
+
+  <!-- EPECISTA Y MEDIDOR -->
+  <div class="card">
+    <div class="card-head"><span class="card-head-title">Epecista y medidor</span></div>
+    <div class="card-body">
+      <div class="field">
+        <label>Epecista</label>
+        <select id="sel-epecista">
+          <option value="">Seleccionar</option>
+          <option>Sol y Cielo (INERGY)</option><option>Solenium</option>
+          <option>CGM INGENIERÍA SAS</option><option>Evolti</option>
+          <option>ENEXA</option><option>Quantum</option>
+          <option>Pelletco</option><option>FEM</option>
+        </select>
+        <input type="text" id="inp-epecista" placeholder="Nombre del epecista" style="display:none;">
+      </div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>Tipo de medidor</label>
+        <div class="tipo-wrap">
+          <button class="tipo-btn" data-val="Principal" onclick="selTipo(this)">
+            Principal
+            <span class="sub">Medidor primario</span>
+          </button>
+          <button class="tipo-btn" data-val="Respaldo" onclick="selTipo(this)">
+            Respaldo
+            <span class="sub">Medidor backup</span>
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Serial del medidor</label>
+        <div class="serial-wrap">
+          <input type="text" id="inp-serial" placeholder="Se completa automáticamente" inputmode="numeric" oninput="onSerialInput()">
+          <span class="serial-tag empty" id="serial-tag">—</span>
+        </div>
+        <p class="serial-hint" id="serial-hint"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ESTADO -->
+  <div class="card">
+    <div class="card-head"><span class="card-head-title">Estado del medidor</span></div>
+    <div class="card-body">
+      <div class="estado-wrap">
+        <button class="est-btn" data-val="Operativo" onclick="selEstado(this)">Operativo</button>
+        <button class="est-btn" data-val="En falla" onclick="selEstado(this)">En falla</button>
+        <button class="est-btn" data-val="no ha iniciado" onclick="selEstado(this)">No ha iniciado</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTAS -->
+  <div class="card">
+    <div class="card-head"><span class="card-head-title">Notas</span></div>
+    <div class="card-body">
+      <div class="field">
+        <label>Comentario</label>
+        <textarea id="inp-comentario" placeholder="Describe la novedad, falla o estado del medidor..." oninput="onComentarioInput()"></textarea>
+        <div class="coment-status" id="coment-status">Sugerido automáticamente según el estado seleccionado</div>
+      </div>
+      <div class="field">
+        <label>Seguimiento</label>
+        <textarea id="inp-seguimiento" placeholder="Acciones tomadas o pendientes..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTONES -->
+  <div class="btn-row">
+    <button id="btn-limpiar" onclick="limpiarFormulario()">Limpiar</button>
+    <button id="btn-enviar" onclick="enviar()">Guardar en Google Sheets</button>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title">Registros de esta sesión</span>
+      <span class="hist-count" id="hist-count">0</span>
+    </div>
+    <div class="card-body">
+      <div id="hist-lista"><p class="empty-msg">— Sin registros aún —</p></div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"><span id="tm"></span></div>
+
+<script>
+var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxPTJdXOAoHcL5VquN9qWO9IWGNZ1CpvSZfNruZe8ZltYrW0tUeTmZ6FiA5KA-pbDTT/exec";
+
+var SERIALES = {
+  "Sol&Cielo9 - Ciénaga":              {Principal:"10206973",    Respaldo:"10206972"},
+  "MGS 0028 - Chiriguaná Norte":       {Principal:"88866019",    Respaldo:"88866018"},
+  "MGS 005 - Cañahuate":               {Principal:"2932549",     Respaldo:"2932548"},
+  "GD Marimonda":                      {Principal:"10157199",    Respaldo:"10157287"},
+  "MGS 004 - Valle de Gandalf":        {Principal:"2932547",     Respaldo:"2932546"},
+  "GD Polaris 1":                      {Principal:"24083263",    Respaldo:"24083264"},
+  "MGS 003 - Baraya":                  {Principal:"2932544",     Respaldo:"2932545"},
+  "MGS 007 - La Paz Vallenata":        {Principal:"2928466",     Respaldo:"2928472"},
+  "MGS 0015 - El Son":                 {Principal:"88865278",    Respaldo:"88865280"},
+  "GD Delta 1":                        {Principal:"24083261",    Respaldo:"24083262"},
+  "MGS 009 - El molino":               {Principal:"2928473",     Respaldo:"2928468"},
+  "MGS 0010 - Villanueva":             {Principal:"2928469",     Respaldo:"2928474"},
+  "MGS 0012 - La Reserva":             {Principal:"88865276",    Respaldo:"88865277"},
+  "MGS 001 - Uuraco":                  {Principal:"2918499",     Respaldo:"2918504"},
+  "PSF- Yurbaqua":                     {Principal:"10204238",    Respaldo:"10204237"},
+  "MGS 006 - Perijá":                  {Principal:"2928471",     Respaldo:"2928467"},
+  "MGS 0016 - La Puya":                {Principal:"88865287",    Respaldo:"88865279"},
+  "GD NAOS 1":                         {Principal:"23123883",    Respaldo:"23123884"},
+  "MGS 008 - La Paz Verso":            {Principal:"2928470",     Respaldo:"2928475"},
+  "GD NAOS 2":                         {Principal:"24063346",    Respaldo:"24063347"},
+  "Minigranja 0017 - La Paz Esmeralda":{Principal:"88865282",    Respaldo:"88865285"},
+  "MGS 0019 - El Merengue":            {Principal:"88865524",    Respaldo:"88865522"},
+  "GD NAOS 3":                         {Principal:"24083021",    Respaldo:"24083022"},
+  "Minigranja 0022 - La Cumbia":       {Principal:"88865521",    Respaldo:"88865523"},
+  "MGS 0014 - El Olimpo":              {Principal:"88865518",    Respaldo:"88865519"},
+  "MGS San Diego Sur":                 {Principal:"88865748",    Respaldo:"88865749"},
+  "MGS 0023 - El Joropo":              {Principal:"88865754",    Respaldo:"88865755"},
+  "MGS El Mapalé":                     {Principal:"88865747",    Respaldo:"88865746"},
+  "MGS 0041 - Las Piloneras":          {Principal:"88866029",    Respaldo:"88866024"},
+  "MGS 0013 - La Mesa":                {Principal:"88865515",    Respaldo:"88865516"},
+  "MGS 0040 - La Cacica":              {Principal:"88866017",    Respaldo:"88866016"},
+  "GD San Pelayo":                     {Principal:"88866010",    Respaldo:"88866011"},
+  "GD Agustín 1":                      {Principal:"10168690",    Respaldo:"10168689"},
+  "GD Polaris 2":                      {Principal:"101249013034",Respaldo:"101249013042"},
+  "GD BISOLAR":                        {Principal:"10168693",    Respaldo:"10168692"},
+  "GD ASTROLUMEN LA GARITA":           {Principal:"10168698",    Respaldo:"10168696"},
+  "GD SIRIUS":                         {Principal:"10157272",    Respaldo:"10157273"},
+  "Valencia Oriente 2":                {Principal:"88865752",    Respaldo:"88865753"},
+  "El Copey Occidente":                {Principal:"88865745",    Respaldo:"88865744"},
+  "Sol&Cielo7 Los Bongos":             {Principal:"10200994",    Respaldo:"10200995"},
+  "Valencia Oriente 1":                {Principal:"88865750",    Respaldo:"88865751"},
+  "GD La Catedral":                    {Principal:"60715917",    Respaldo:"78824300"},
+  "Gd Yuan Solar":                     {Principal:"88865998",    Respaldo:"88865999"},
+  "Cedillanos Frontera 88864637":      {Principal:"88864637",    Respaldo:""},
+  "Minigranja 0018 - La Paz Leyenda":  {Principal:"88865283",    Respaldo:"88865286"}
+};
+
+var CIUDADES = {
+  "Cesar":     ["San Diego","La Paz","Valledupar","Chiriguaná","El Copey"],
+  "Sucre":     ["Galeras","San Pedro","Sincelejo","Tolú"],
+  "Guajira":   ["Molino","Villanueva","La Jagua del Pilar","Urumita","Riohacha"],
+  "Santander": ["Mesa de los santos","Bucaramanga","Girón"],
+  "Atlántico": ["Luruaco","Barranquilla","Soledad"],
+  "Córdoba":   ["Montería","San Pelayo","Valencia"],
+  "Magdalena": ["Ciénaga","Santa Marta"],
+  "Bolívar":   ["Cartagena","El Carmen de Bolívar"]
+};
+
+var COMENTARIOS_SUGERIDOS = {
+  "Operativo":       "Medidor operando correctamente. Sin novedades.",
+  "En falla":        "Medidor presenta falla. Pendiente revisión técnica.",
+  "no ha iniciado":  "Medidor aún no ha iniciado operación en campo."
+};
+
+var tipoActual        = null;
+var estadoActual      = null;
+var historial         = [];
+var modoActual        = "existente";
+var editIndex         = -1;
+var charts            = {};
+var comentarioEsAuto  = false;
+
+// ── Reloj ──────────────────────────────────────────
+function tick() {
+  var n = new Date();
+  document.getElementById("reloj").textContent =
+    n.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+}
+setInterval(tick,1000); tick();
+
+// ── Tema ───────────────────────────────────────────
+function toggleTheme() {
+  var html = document.documentElement;
+  var dark = html.getAttribute("data-theme") === "dark";
+  var nuevo = dark ? "light" : "dark";
+  html.setAttribute("data-theme", nuevo);
+  localStorage.setItem("theme", nuevo);
+  actualizarColoresGrafica();
+}
+
+(function(){
+  var t = localStorage.getItem("theme") || "dark";
+  document.documentElement.setAttribute("data-theme", t);
+})();
+
+// ── Gráfica ────────────────────────────────────────
+var datosGrafica  = null;
+var proyectosSheet = [];
+
+function cargarEstadisticas() {
+  document.getElementById("chart-container").innerHTML = '<p class="chart-loading">Cargando datos...</p>';
+  ["kpi-op","kpi-fa","kpi-ni"].forEach(function(id){ document.getElementById(id).textContent = "—"; });
+  if (charts.p) { charts.p.destroy(); charts.p = null; }
+  if (charts.r) { charts.r.destroy(); charts.r = null; }
+  cerrarDrawer();
+
+  fetch(SCRIPT_URL)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (data.success && data.stats) {
+        datosGrafica   = data.stats;
+        proyectosSheet = data.proyectos || [];
+        renderKPIs(data.stats);
+        renderGrafica(data.stats);
+      } else {
+        document.getElementById("chart-container").innerHTML = '<p class="chart-loading">Sin datos en el sheet.</p>';
+      }
+    })
+    .catch(function(){
+      document.getElementById("chart-container").innerHTML = '<p class="chart-loading">No se pudo conectar.</p>';
+    });
+}
+
+function renderKPIs(stats) {
+  var totOp=0, totFa=0, totNi=0;
+  ["Principal","Respaldo"].forEach(function(t){
+    var s = stats[t]||{};
+    totOp += s["Operativo"]||0;
+    totFa += s["En falla"]||0;
+    totNi += s["no ha iniciado"]||0;
+  });
+  animateNum("kpi-op", totOp);
+  animateNum("kpi-fa", totFa);
+  animateNum("kpi-ni", totNi);
+}
+
+// ── Drawer de proyectos por estado ─────────────────
+var drawerEstadoActivo = null;
+
+function toggleDrawer(estado) {
+  if (drawerEstadoActivo === estado) {
+    cerrarDrawer(); return;
+  }
+  drawerEstadoActivo = estado;
+
+  // Marcar KPI activo
+  document.querySelectorAll(".kpi-box").forEach(function(b){ b.classList.remove("active-filter"); });
+  var mapa = { "Operativo":"kpi-box-op", "En falla":"kpi-box-fa", "no ha iniciado":"kpi-box-ni" };
+  if (mapa[estado]) document.getElementById(mapa[estado]).classList.add("active-filter");
+
+  // Título del drawer
+  var titulos = { "Operativo":"Proyectos Operativos", "En falla":"Proyectos En Falla", "no ha iniciado":"Proyectos Sin Iniciar" };
+  document.getElementById("drawer-title").textContent = titulos[estado] || estado;
+
+  var lista = document.getElementById("drawer-list");
+
+  // Combinar fuentes: sheet + sesión actual (sesión tiene prioridad / más reciente)
+  // Primero los del sheet que no estén ya en sesión con mismo proyecto+tipo
+  var itemsSheet = proyectosSheet.filter(function(p){ return p.estado === estado; });
+  var itemsSesion = historial.filter(function(h){ return h.estado === estado; });
+
+  // Mezclar: sesión sobreescribe los del sheet para mismo proyecto+tipo
+  var combinados = itemsSheet.slice();
+  itemsSesion.forEach(function(h){
+    var idx = combinados.findIndex(function(p){
+      return p.proyecto === h.proyecto && p.tipo_medidor === h.tipo_medidor;
+    });
+    if (idx >= 0) combinados[idx] = h; // actualizar con dato de sesión
+    else combinados.unshift(h);        // nuevo de sesión
+  });
+
+  if (combinados.length === 0) {
+    lista.innerHTML = '<div class="drawer-empty">Sin proyectos en este estado</div>';
+  } else {
+    lista.innerHTML = combinados.map(function(p){
+      var tipoCls = p.tipo_medidor === "Principal" ? "p" : "r";
+      return '<div class="drawer-item">'+
+        '<div class="drawer-item-left">'+
+          '<span class="drawer-item-name">'+p.proyecto+'</span>'+
+          '<span class="drawer-item-sub">'+(p.serial||"Sin serial")+(p.ciudad?" · "+p.ciudad:"")+'</span>'+
+        '</div>'+
+        '<span class="drawer-tipo '+tipoCls+'">'+p.tipo_medidor+'</span>'+
+      '</div>';
+    }).join('');
+  }
+
+  document.getElementById("kpi-drawer").classList.add("open");
+}
+
+function cerrarDrawer() {
+  drawerEstadoActivo = null;
+  document.getElementById("kpi-drawer").classList.remove("open");
+  document.querySelectorAll(".kpi-box").forEach(function(b){ b.classList.remove("active-filter"); });
+}
+
+function animateNum(id, target) {
+  var el = document.getElementById(id);
+  var start = 0;
+  var dur = 600;
+  var startTime = null;
+  function step(ts) {
+    if (!startTime) startTime = ts;
+    var progress = Math.min((ts - startTime) / dur, 1);
+    el.textContent = Math.round(progress * target);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function renderGrafica(stats) {
+  var isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  var labels = ["Operativo","En falla","No iniciado"];
+  var colors = ["#00e5a0","#ff6b6b","#ffb443"];
+  var borderCol = isDark ? "#0a0a0f" : "#f2f2f8";
+
+  var html = '<div class="chart-grid">';
+
+  ["Principal","Respaldo"].forEach(function(tipo) {
+    var s    = stats[tipo] || {};
+    var vals = [s["Operativo"]||0, s["En falla"]||0, s["no ha iniciado"]||0];
+    var total = vals.reduce(function(a,b){return a+b;},0);
+    var id    = "chart-" + tipo.toLowerCase();
+    var pill  = tipo === "Principal"
+      ? '<span class="tipo-pill p">Principal</span>'
+      : '<span class="tipo-pill r">Respaldo</span>';
+
+    html += '<div class="chart-box">';
+    html += '<div class="chart-box-title">' + pill + ' <span style="color:var(--subtle);font-weight:400;font-size:9px;">(' + total + ')</span></div>';
+    html += '<div class="chart-wrap"><canvas id="' + id + '"></canvas></div>';
+    html += '<div class="stats-row">';
+    labels.forEach(function(lbl, i){
+      var pct = total > 0 ? Math.round(vals[i]/total*100) : 0;
+      html += '<div class="stat-item">';
+      html += '<span style="font-size:9px;font-family:var(--mono);color:'+colors[i]+';min-width:60px;">' + lbl + '</span>';
+      html += '<div class="stat-bar-wrap"><div class="stat-bar" style="background:'+colors[i]+';width:'+pct+'%"></div></div>';
+      html += '<span class="stat-count" style="color:'+colors[i]+'">' + vals[i] + '</span>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+
+  html += '</div>';
+  document.getElementById("chart-container").innerHTML = html;
+
+  ["Principal","Respaldo"].forEach(function(tipo) {
+    var s    = stats[tipo] || {};
+    var vals = [s["Operativo"]||0, s["En falla"]||0, s["no ha iniciado"]||0];
+    var key  = tipo === "Principal" ? "p" : "r";
+    var id   = "chart-" + tipo.toLowerCase();
+    var ctx  = document.getElementById(id).getContext("2d");
+
+    charts[key] = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: labels,
+        datasets: [{ data: vals, backgroundColor: colors, borderColor: borderCol, borderWidth: 3, hoverOffset: 8 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "70%",
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx){
+                var total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
+                var pct   = total > 0 ? Math.round(ctx.parsed/total*100) : 0;
+                return " " + ctx.label + ": " + ctx.parsed + " (" + pct + "%)";
+              }
+            }
+          }
+        }
+      }
+    });
+  });
+}
+
+function actualizarColoresGrafica() {
+  if (datosGrafica) setTimeout(function(){ renderGrafica(datosGrafica); }, 60);
+}
+
+// ── Modo ───────────────────────────────────────────
+function setModo(modo) {
+  modoActual = modo;
+  var esNuevo = modo === "nuevo";
+  document.getElementById("btn-modo-existente").classList.toggle("active", !esNuevo);
+  document.getElementById("btn-modo-nuevo").classList.toggle("active", esNuevo);
+  document.getElementById("desc-modo").textContent = esNuevo
+    ? "Ingresa los datos manualmente para registrar un proyecto nuevo."
+    : "Selecciona de la lista de proyectos registrados.";
+  document.getElementById("new-banner").style.display = esNuevo ? "block" : "none";
+  [["sel-depto","inp-depto"],["sel-ciudad","inp-ciudad"],
+   ["sel-proyecto","inp-proyecto"],["sel-epecista","inp-epecista"]].forEach(function(p){
+    document.getElementById(p[0]).style.display = esNuevo ? "none" : "block";
+    document.getElementById(p[1]).style.display = esNuevo ? "block" : "none";
+  });
+  if (esNuevo) clearSerial();
+}
+
+// ── Ciudades ───────────────────────────────────────
+function filtrarCiudades() {
+  var dep = document.getElementById("sel-depto").value;
+  var sel = document.getElementById("sel-ciudad");
+  sel.innerHTML = '<option value="">Seleccionar</option>';
+  (CIUDADES[dep]||[]).forEach(function(c){
+    var o = document.createElement("option"); o.textContent = c; sel.appendChild(o);
+  });
+}
+
+// ── Serial auto ────────────────────────────────────
+function autoSerial() {
+  var proyecto = document.getElementById("sel-proyecto").value;
+  var inp=document.getElementById("inp-serial"),tag=document.getElementById("serial-tag"),hint=document.getElementById("serial-hint");
+  if (!proyecto || modoActual==="nuevo") { clearSerial(); return; }
+  var mapa = SERIALES[proyecto];
+  if (!mapa) { clearSerial(); return; }
+  if (tipoActual) {
+    var s = mapa[tipoActual]||"";
+    if (s) {
+      inp.value=s; inp.classList.add("auto-filled");
+      tag.textContent="Auto"; tag.className="serial-tag auto";
+      hint.textContent="Completado automáticamente · puedes editarlo si es necesario";
+    } else {
+      clearSerial(); hint.textContent="Sin serial registrado · ingresa manualmente";
+    }
+  } else {
+    inp.value=""; inp.classList.remove("auto-filled");
+    tag.textContent="—"; tag.className="serial-tag empty";
+    hint.textContent="Principal: "+(mapa["Principal"]||"—")+"   Respaldo: "+(mapa["Respaldo"]||"—");
+  }
+}
+
+function clearSerial() {
+  var inp=document.getElementById("inp-serial"),tag=document.getElementById("serial-tag"),hint=document.getElementById("serial-hint");
+  inp.value=""; inp.classList.remove("auto-filled");
+  tag.textContent="—"; tag.className="serial-tag empty"; hint.textContent="";
+}
+
+function onSerialInput() {
+  var inp=document.getElementById("inp-serial"),tag=document.getElementById("serial-tag");
+  inp.classList.remove("auto-filled");
+  tag.textContent=inp.value?"Manual":"—";
+  tag.className=inp.value?"serial-tag manual":"serial-tag empty";
+}
+
+// ── Comentario ─────────────────────────────────────
+function onComentarioInput() {
+  comentarioEsAuto = false;
+  document.getElementById("coment-status").classList.remove("visible");
+}
+
+// ── Selecciones ────────────────────────────────────
+function selTipo(btn) {
+  document.querySelectorAll(".tipo-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active"); tipoActual=btn.dataset.val; autoSerial();
+}
+
+function selEstado(btn) {
+  document.querySelectorAll(".est-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  estadoActual = btn.dataset.val;
+
+  var cam = document.getElementById("inp-comentario");
+  var cs  = document.getElementById("coment-status");
+  var valorActual = cam.value.trim();
+  var esSugerenciaAnterior = Object.values(COMENTARIOS_SUGERIDOS).includes(valorActual) || valorActual === "";
+
+  if (esSugerenciaAnterior) {
+    cam.value = COMENTARIOS_SUGERIDOS[estadoActual] || "";
+    comentarioEsAuto = true;
+    cs.classList.add("visible");
+  }
+}
+
+function v(s,i){ return modoActual==="nuevo"?document.getElementById(i).value.trim():document.getElementById(s).value; }
+
+// ── Limpiar ────────────────────────────────────────
+function limpiarFormulario() {
+  resetForm();
+  editIndex = -1;
+  document.getElementById("btn-enviar").textContent = "Guardar en Google Sheets";
+  toast("Formulario limpiado.","info");
+}
+
+// ── Enviar ─────────────────────────────────────────
+function enviar() {
+  var proyecto = v("sel-proyecto","inp-proyecto");
+  if (!proyecto)     { toast("Selecciona o ingresa el nombre del proyecto.","err"); return; }
+  if (!tipoActual)   { toast("Selecciona el tipo de medidor.","err");               return; }
+  if (!estadoActual) { toast("Selecciona el estado del medidor.","err");            return; }
+
+  var ahora = new Date();
+  var fecha = ahora.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
+  var hora  = ahora.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+
+  var payload = {
+    departamento: v("sel-depto","inp-depto"),
+    ciudad:       v("sel-ciudad","inp-ciudad"),
+    proyecto:     proyecto,
+    epecista:     v("sel-epecista","inp-epecista"),
+    tipo_medidor: tipoActual,
+    serial:       document.getElementById("inp-serial").value.trim(),
+    estado:       estadoActual,
+    comentario:   document.getElementById("inp-comentario").value.trim()||"Sin comentarios",
+    seguimiento:  document.getElementById("inp-seguimiento").value.trim()||"",
+    es_nuevo:     modoActual==="nuevo",
+    _fecha:       fecha,
+    _hora:        hora
+  };
+
+  var btn = document.getElementById("btn-enviar");
+  btn.disabled=true; btn.innerHTML='<span class="sp"></span>Guardando...';
+
+  fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)})
+  .then(r=>r.json())
+  .then(function(d){
+    if (d.success) {
+      if (editIndex >= 0) {
+        historial[editIndex] = payload;
+        editIndex = -1;
+        document.getElementById("btn-enviar").textContent = "Guardar en Google Sheets";
+        toast("Registro corregido y guardado.","ok");
+      } else {
+        var idxExistente = historial.findIndex(function(h){
+          return h.proyecto === payload.proyecto && h.tipo_medidor === payload.tipo_medidor;
+        });
+        if (idxExistente >= 0) {
+          historial[idxExistente] = payload;
+          toast("Registro actualizado correctamente.","ok");
+        } else {
+          historial.unshift(payload);
+          toast("Registro guardado correctamente.","ok");
+        }
+      }
+      renderHist();
+      resetForm();
+    } else {
+      toast("Error: "+d.mensaje,"err");
+    }
+  })
+  .catch(function(){ toast("Error de conexión. Verifica la URL del script.","err"); })
+  .finally(function(){
+    btn.disabled=false;
+    btn.innerHTML = editIndex>=0 ? "Corregir registro" : "Guardar en Google Sheets";
+  });
+}
+
+// ── Reset ──────────────────────────────────────────
+function resetForm() {
+  ["sel-depto","sel-ciudad","sel-proyecto","sel-epecista"].forEach(function(id){ document.getElementById(id).value=""; });
+  ["inp-depto","inp-ciudad","inp-proyecto","inp-epecista","inp-comentario","inp-seguimiento"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.querySelectorAll(".tipo-btn,.est-btn").forEach(b=>b.classList.remove("active"));
+  tipoActual=null; estadoActual=null; comentarioEsAuto=false;
+  document.getElementById("coment-status").classList.remove("visible");
+  clearSerial();
+}
+
+// ── Editar ─────────────────────────────────────────
+function editarRegistro(idx) {
+  var h = historial[idx];
+  editIndex = idx;
+  if (h.es_nuevo) setModo("nuevo"); else setModo("existente");
+  setTimeout(function(){
+    if (h.es_nuevo) {
+      document.getElementById("inp-depto").value    = h.departamento||"";
+      document.getElementById("inp-ciudad").value   = h.ciudad||"";
+      document.getElementById("inp-proyecto").value = h.proyecto||"";
+      document.getElementById("inp-epecista").value = h.epecista||"";
+    } else {
+      document.getElementById("sel-depto").value    = h.departamento||"";
+      filtrarCiudades();
+      document.getElementById("sel-ciudad").value   = h.ciudad||"";
+      document.getElementById("sel-proyecto").value = h.proyecto||"";
+      document.getElementById("sel-epecista").value = h.epecista||"";
+    }
+    document.querySelectorAll(".tipo-btn").forEach(function(b){
+      b.classList.toggle("active", b.dataset.val===h.tipo_medidor);
+    });
+    tipoActual = h.tipo_medidor;
+    var inp=document.getElementById("inp-serial");
+    inp.value=h.serial||""; inp.classList.remove("auto-filled");
+    document.getElementById("serial-tag").textContent=h.serial?"Manual":"—";
+    document.getElementById("serial-tag").className=h.serial?"serial-tag manual":"serial-tag empty";
+    document.querySelectorAll(".est-btn").forEach(function(b){
+      b.classList.toggle("active", b.dataset.val===h.estado);
+    });
+    estadoActual = h.estado;
+    document.getElementById("inp-comentario").value  = h.comentario!=="Sin comentarios"?h.comentario:"";
+    document.getElementById("inp-seguimiento").value = h.seguimiento||"";
+    document.getElementById("btn-enviar").textContent = "Corregir registro";
+    window.scrollTo({top:0, behavior:"smooth"});
+    toast("Datos cargados. Corrige y guarda de nuevo.","info");
+  }, 50);
+}
+
+// ── Eliminar ───────────────────────────────────────
+function eliminarRegistro(idx) {
+  historial.splice(idx,1);
+  if (editIndex === idx) {
+    editIndex=-1; resetForm();
+    document.getElementById("btn-enviar").textContent="Guardar en Google Sheets";
+  }
+  renderHist();
+  toast("Registro eliminado de la sesión.","info");
+}
+
+// ── Historial ──────────────────────────────────────
+function renderHist() {
+  var lista = document.getElementById("hist-lista");
+  document.getElementById("hist-count").textContent = historial.length;
+  if (!historial.length) {
+    lista.innerHTML='<p class="empty-msg">— Sin registros aún —</p>';
+  } else {
+    lista.innerHTML = historial.map(function(h,i){
+      var bc  = h.estado==="Operativo"?"badge-op":h.estado==="En falla"?"badge-fa":"badge-ni";
+      var tag = h.es_nuevo?'<span class="badge badge-new">Nuevo</span>':"";
+      var ts  = h._fecha ? '<div class="hist-ts">'+h._fecha+' · '+h._hora+'</div>' : '';
+      return '<div class="hist-item">'+
+        '<div class="hist-left">'+
+          '<span class="hist-proyecto">'+h.proyecto+'</span>'+
+          '<span class="hist-sub">'+h.tipo_medidor+(h.serial?" · "+h.serial:"")+(h.ciudad?" · "+h.ciudad:"")+'</span>'+
+          ts+
+        '</div>'+
+        '<div class="hist-actions">'+
+          tag+'<span class="badge '+bc+'">'+h.estado+'</span>'+
+          '<button class="btn-edit" onclick="editarRegistro('+i+')">Editar</button>'+
+          '<button class="btn-del" onclick="eliminarRegistro('+i+')">X</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+  // Refrescar drawer si está abierto
+  if (drawerEstadoActivo) toggleDrawer(drawerEstadoActivo);
+}
+
+// ── Toast ──────────────────────────────────────────
+var _tt=null;
+function toast(msg,tipo){
+  var el=document.getElementById("toast");
+  document.getElementById("tm").textContent=msg;
+  el.className="show "+(tipo||"");
+  clearTimeout(_tt); _tt=setTimeout(function(){el.className="";},3500);
+}
+
+cargarEstadisticas();
+</script>
+</body>
+</html>
